@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Replaces the Supabase profiles table. The ID will be the Clerk User ID.
+model Profile {
+  id        String   @id 
+  email     String   @unique
+  password  String
+  role      String   @default("cashier") // 'admin' or 'cashier'
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  requiresPreparation Boolean   @default(true) // <-- NEW: False for drinks/snacks
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id          String            @id @default(uuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name        String
+  basePrice   Decimal           @db.Decimal(10, 2)
+  imageUrl    String?
+  isAvailable Boolean           @default(true)
+  stock       Int               @default(0)       // <-- NEW: Inventory tracking
+  createdAt   DateTime          @default(now())
+  
+  modifiers   ProductModifier[]
+  orderItems  OrderItem[]
+}
+
+model ProductModifier {
+  id              String      @id @default(uuid())
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name            String
+  priceAdjustment Decimal     @default(0.00) @db.Decimal(10, 2)
+  createdAt       DateTime    @default(now())
+  orderItems      OrderItem[]
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  cashierId     String
+  
+  totalAmount   Decimal     @db.Decimal(10, 2)
+  paymentMethod String      // 'cash', 'card', 'wallet'
+ status        OrderStatus @default(PENDING) // <-- NEW: Uses Enum instead of String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt        // <-- NEW: Tracks when status changes
+ cashier       Profile     @relation(fields: [cashierId], references: [id])
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id          String           @id @default(uuid())
+  orderId     String
+  order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product          @relation(fields: [productId], references: [id])
+  modifierId  String?
+  modifier    ProductModifier? @relation(fields: [modifierId], references: [id])
+  quantity    Int              @default(1)
+  priceAtTime Decimal          @db.Decimal(10, 2)
+  createdAt   DateTime         @default(now())
+}
+
+enum OrderStatus {
+  PENDING     // Placed by cashier, waiting for chef to acknowledge
+  PREPARING   // Chef is cooking it
+  READY       // Food is done, waiting for cashier/waiter to grab it
+  COMPLETED   // Handed to customer
+}
