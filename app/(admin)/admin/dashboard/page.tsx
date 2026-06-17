@@ -1,4 +1,5 @@
 import { prisma } from "@/app/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { logoutAction } from "@/app/(auth)/actions";
 import Link from "next/link";
 import RecentOrdersTable from "./RecentOrdersTable";
@@ -50,26 +51,33 @@ export default async function AdminDashboard() {
   });
 
   // 3. Fetch Recent Transactions
-  const rawRecentOrders = await prisma.order.findMany({
-    take: 5,
-    orderBy: { createdAt: "desc" },
-    include: {
-      cashier: { select: { email: true } },
-      items: {
-        include: { product: { select: { name: true } } },
-      },
+const rawRecentOrders = await prisma.order.findMany({
+  take: 5,
+  orderBy: { createdAt: "desc" },
+  include: {
+    cashier: { select: { email: true } },
+    items: {
+      include: { product: { select: { name: true } } },
     },
-  });
+  },
+});
+
+type RecentOrderPayload = Prisma.OrderGetPayload<{
+  include: {
+    cashier: { select: { email: true } };
+    items: { include: { product: { select: { name: true } } } };
+  };
+}>;
 
   // 4. Transform data for client usage (Safe types)
-  const safeRecentOrders = rawRecentOrders.map((order) => ({
-    ...order,
-    totalAmount: Number(order.totalAmount),
-    items: order.items.map((item) => ({
-      ...item,
-      priceAtTime: Number(item.priceAtTime ?? 0),
-    })),
-  }));
+ const safeRecentOrders = rawRecentOrders.map((order: RecentOrderPayload) => ({
+   ...order,
+   totalAmount: Number(order.totalAmount),
+   items: order.items.map((item) => ({
+     ...item,
+     priceAtTime: Number(item.priceAtTime ?? 0),
+   })),
+ }));
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
