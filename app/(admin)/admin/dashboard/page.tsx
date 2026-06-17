@@ -25,16 +25,16 @@ const [revenueData, orderCount] = await Promise.all([
     take: 5,
   });
 
-  const topItemIds = topItemsAgg.map((item) => item.productId);
+  const topItemIds = topItemsAgg.map((item: any) => item.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: topItemIds } },
     select: { id: true, name: true },
   });
 
-  const topProducts = topItemsAgg.map((agg) => ({
-    name: products.find((p) => p.id === agg.productId)?.name || "Unknown Item",
-    sold: agg._sum.quantity || 0,
-  }));
+const topProducts = topItemsAgg.map((agg: any) => ({
+  name: products.find((p) => p.id === agg.productId)?.name || "Unknown Item",
+  sold: agg._sum.quantity || 0,
+}));
 
   // 3. Fetch Recent Transactions WITH Nested Items
   const rawRecentOrders = await prisma.order.findMany({
