@@ -19,31 +19,26 @@ export default async function AdminDashboard() {
   const totalRevenue = Number(revenueData._sum.totalAmount ?? 0);
 
   // 2. Fetch Top Selling Products
+  // We use 'as unknown as' to break the strict type-checking chain
   const topItemsAgg = (await prisma.orderItem.groupBy({
     by: ["productId"],
     _sum: { quantity: true },
     orderBy: { _sum: { quantity: "desc" } },
     take: 5,
-  })) as { productId: string; _sum: { quantity: number | null } }[];
+  })) as unknown as Array<{
+    productId: string;
+    _sum: { quantity: number | null };
+  }>;
 
   const topItemIds = topItemsAgg.map((item) => item.productId);
 
-  // Define an interface for what you are selecting from the database
-  interface ProductSummary {
-    id: string;
-    name: string;
-  }
-
-  const products: ProductSummary[] = await prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: { id: { in: topItemIds } },
     select: { id: true, name: true },
   });
 
   const topProducts = topItemsAgg.map((agg) => {
-    // Now TypeScript knows exactly what 'p' is because of the interface
-    const product = products.find(
-      (p: ProductSummary) => p.id === agg.productId,
-    );
+    const product = products.find((p) => p.id === agg.productId);
     return {
       name: product?.name ?? "Unknown Item",
       sold: agg._sum.quantity ?? 0,
@@ -51,33 +46,33 @@ export default async function AdminDashboard() {
   });
 
   // 3. Fetch Recent Transactions
-const rawRecentOrders = await prisma.order.findMany({
-  take: 5,
-  orderBy: { createdAt: "desc" },
-  include: {
-    cashier: { select: { email: true } },
-    items: {
-      include: { product: { select: { name: true } } },
+  const rawRecentOrders = await prisma.order.findMany({
+    take: 5,
+    orderBy: { createdAt: "desc" },
+    include: {
+      cashier: { select: { email: true } },
+      items: {
+        include: { product: { select: { name: true } } },
+      },
     },
-  },
-});
+  });
 
-type RecentOrderPayload = Prisma.OrderGetPayload<{
-  include: {
-    cashier: { select: { email: true } };
-    items: { include: { product: { select: { name: true } } } };
-  };
-}>;
+  type RecentOrderPayload = Prisma.OrderGetPayload<{
+    include: {
+      cashier: { select: { email: true } };
+      items: { include: { product: { select: { name: true } } } };
+    };
+  }>;
 
   // 4. Transform data for client usage (Safe types)
- const safeRecentOrders = rawRecentOrders.map((order: RecentOrderPayload) => ({
-   ...order,
-   totalAmount: Number(order.totalAmount),
-   items: order.items.map((item) => ({
-     ...item,
-     priceAtTime: Number(item.priceAtTime ?? 0),
-   })),
- }));
+  const safeRecentOrders = rawRecentOrders.map((order: RecentOrderPayload) => ({
+    ...order,
+    totalAmount: Number(order.totalAmount),
+    items: order.items.map((item) => ({
+      ...item,
+      priceAtTime: Number(item.priceAtTime ?? 0),
+    })),
+  }));
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
