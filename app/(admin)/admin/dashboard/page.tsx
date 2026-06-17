@@ -20,27 +20,29 @@ export default async function AdminDashboard() {
   // 2. Fetch Top Selling Products
   const topItemsAgg = (await prisma.orderItem.groupBy({
     by: ["productId"],
-    _sum: {
-      quantity: true,
-    },
-    orderBy: {
-      _sum: {
-        quantity: "desc",
-      },
-    },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: "desc" } },
     take: 5,
-  })) as unknown as { productId: string; _sum: { quantity: number | null } }[];
+  })) as { productId: string; _sum: { quantity: number | null } }[];
 
-  // Now TypeScript knows exactly what 'item' is
   const topItemIds = topItemsAgg.map((item) => item.productId);
 
-  const products = await prisma.product.findMany({
+  // Define an interface for what you are selecting from the database
+  interface ProductSummary {
+    id: string;
+    name: string;
+  }
+
+  const products: ProductSummary[] = await prisma.product.findMany({
     where: { id: { in: topItemIds } },
     select: { id: true, name: true },
   });
 
   const topProducts = topItemsAgg.map((agg) => {
-    const product = products.find((p) => p.id === agg.productId);
+    // Now TypeScript knows exactly what 'p' is because of the interface
+    const product = products.find(
+      (p: ProductSummary) => p.id === agg.productId,
+    );
     return {
       name: product?.name ?? "Unknown Item",
       sold: agg._sum.quantity ?? 0,
