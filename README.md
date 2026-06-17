@@ -90,12 +90,12 @@ The application is built on a clean, decoupled architecture:
 
 ## 💡 Technical Challenges Solved
 
-    Hydration Mismatch: Resolved React server/client HTML mismatches using suppressHydrationWarning for dynamic date and boolean attributes.
+* Hydration Mismatch: Resolved React server/client HTML mismatches using suppressHydrationWarning for dynamic date and boolean attributes.
 
-    Prisma Serialization: Fixed [object Object] errors during server-to-client data transfer by sanitizing Prisma Decimal and Date objects into plain JSON.
+* Prisma Serialization: Fixed [object Object] errors during server-to-client data transfer by sanitizing Prisma Decimal and Date objects into plain JSON.
 
-    Referential Integrity: Implemented cascading deletes and foreign key management to maintain absolute historical accuracy for past transactions.
+* Referential Integrity: Implemented cascading deletes and foreign key management to maintain absolute historical accuracy for past transactions.
 
 ## 👨‍💻 Developer
 
-Muhammad Ammar (Ammar Talpur) Full Stack Web Developer | Backend Specialist
+* Muhammad Ammar (Ammar Talpur) Full Stack Web Developer | Backend Specialist
