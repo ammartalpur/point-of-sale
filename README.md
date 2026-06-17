@@ -88,7 +88,7 @@ The application is built on a clean, decoupled architecture:
 
     npm run dev
 
-💡 Technical Challenges Solved
+## 💡 Technical Challenges Solved
 
     Hydration Mismatch: Resolved React server/client HTML mismatches using suppressHydrationWarning for dynamic date and boolean attributes.
 
@@ -96,6 +96,6 @@ The application is built on a clean, decoupled architecture:
 
     Referential Integrity: Implemented cascading deletes and foreign key management to maintain absolute historical accuracy for past transactions.
 
-👨‍💻 Developer
+## 👨‍💻 Developer
 
 Muhammad Ammar (Ammar Talpur) Full Stack Web Developer | Backend Specialist
