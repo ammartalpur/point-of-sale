@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { MenuCategory, MenuCommand, MenuProduct } from "@/app/lib/menu-management";
 import ProductEditor from "./ProductEditor";
 import { buttonStyle, FormError, inputStyle, Modal, primaryStyle, useMenuSave } from "./MenuControls";
+import OtaqBrand from "@/app/components/OtaqBrand";
 
 type Editor = { kind: "product"; product?: MenuProduct } | { kind: "category"; category?: MenuCategory } |
   { kind: "stock"; product: MenuProduct } | { kind: "confirm"; title: string; description: string; command: MenuCommand };
@@ -28,25 +29,25 @@ export default function MenuManager({ categories, products }: { categories: Menu
   function saved(notice: string) { setMessage(notice); setEditor(null); }
   function confirm(title: string, description: string, command: MenuCommand) { setEditor({ kind: "confirm", title, description, command }); }
 
-  return <main className="min-h-screen bg-[#07111f] px-4 py-8 text-slate-100 sm:px-8">
+  return <main className="min-h-screen bg-[#17110d] px-4 py-8 text-slate-100 sm:px-8">
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <div><Link href="/admin/dashboard" className="text-sm font-medium text-sky-400 hover:text-sky-300">← Dashboard</Link>
+        <div><Link href="/admin/dashboard" className="text-sm font-medium text-orange-400 hover:text-orange-300">← Dashboard</Link>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Menu & inventory</h1>
           <p className="mt-1 text-sm text-slate-500">Manage your catalog, preparation settings and what is available to sell.</p></div>
-        <button className={primaryStyle} onClick={() => setEditor({ kind: "product" })} disabled={!categories.some((category) => !category.isArchived)}>+ Add product</button>
+        <div className="flex flex-wrap items-center gap-4"><OtaqBrand /><button className={primaryStyle} onClick={() => setEditor({ kind: "product" })} disabled={!categories.some((category) => !category.isArchived)}>+ Add product</button></div>
       </header>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[["Active products", activeProducts.length], ["Categories", categories.filter((category) => !category.isArchived).length],
           ["Sold out", activeProducts.filter((product) => product.stock === 0).length], ["Unavailable", activeProducts.filter((product) => !product.isAvailable).length]].map(([label, count]) =>
-          <div key={label} className="rounded-xl border border-white/7 bg-[#0d1b2a] p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-white">{count}</p></div>)}
+          <div key={label} className="rounded-xl border border-white/7 bg-[#211912] p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-white">{count}</p></div>)}
       </div>
       {message && <div role="status" className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-300">{message}<button aria-label="Dismiss notification" onClick={() => setMessage("")}>✕</button></div>}
       <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-xl border border-white/7 bg-[#0d1b2a] p-4">
-          <div className="mb-4 flex items-center justify-between"><h2 className="font-bold text-white">Categories</h2><button onClick={() => setEditor({ kind: "category" })} className="text-sm font-semibold text-sky-400">+ Add category</button></div>
-          <button onClick={() => setCategoryFilter("")} aria-pressed={!selectedCategory} className={`mb-3 w-full rounded-lg p-3 text-left text-sm font-semibold ${!selectedCategory ? "bg-sky-400/15 text-sky-300" : "bg-white/3 text-slate-400"}`}>All categories</button>
-          <div className="space-y-3">{categories.map((category) => <div key={category.id} className={`rounded-lg border p-3 ${categoryFilter === category.id ? "border-sky-400/40 bg-sky-400/10" : "border-white/8 bg-white/2"}`}>
+        <aside className="rounded-xl border border-white/7 bg-[#211912] p-4">
+          <div className="mb-4 flex items-center justify-between"><h2 className="font-bold text-white">Categories</h2><button onClick={() => setEditor({ kind: "category" })} className="text-sm font-semibold text-orange-400">+ Add category</button></div>
+          <button onClick={() => setCategoryFilter("")} aria-pressed={!selectedCategory} className={`mb-3 w-full rounded-lg p-3 text-left text-sm font-semibold ${!selectedCategory ? "bg-orange-400/15 text-orange-300" : "bg-white/3 text-slate-400"}`}>All categories</button>
+          <div className="space-y-3">{categories.map((category) => <div key={category.id} className={`rounded-lg border p-3 ${categoryFilter === category.id ? "border-orange-400/40 bg-orange-400/10" : "border-white/8 bg-white/2"}`}>
             <button className="flex w-full items-center justify-between gap-2 text-left text-sm font-semibold" aria-pressed={selectedCategory === category.id} onClick={() => { setCategoryFilter(category.id); setView(category.isArchived ? "archived" : "active"); }}>
               <span>{category.name}</span><span className="text-xs text-slate-500">{category._count.products}</span></button>
             <p className="mt-1 text-xs text-slate-500">{category.isArchived ? "Archived · " : ""}{category.requiresPreparation ? "Kitchen preparation" : "Ready to serve"}</p>
@@ -60,7 +61,7 @@ export default function MenuManager({ categories, products }: { categories: Menu
           </div>)}</div>
           {categories.length === 0 && <p className="py-6 text-sm text-slate-500">Add your first category to start building the menu.</p>}
         </aside>
-        <section className="overflow-hidden rounded-xl border border-white/7 bg-[#0d1b2a]">
+        <section className="overflow-hidden rounded-xl border border-white/7 bg-[#211912]">
           <div className="flex flex-wrap items-end gap-3 border-b border-white/7 p-4">
             <label className="min-w-40 flex-1 text-xs font-medium text-slate-500">Search products<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name or category…" className={inputStyle} /></label>
             <label className="text-xs font-medium text-slate-500">Show<select value={view} onChange={(event) => setView(event.target.value)} className={inputStyle}><option value="active">Active catalog</option><option value="archived">Archived</option><option value="all">All products</option></select></label>
@@ -101,7 +102,7 @@ function CategoryEditor({ category, onClose, onSaved }: { category?: MenuCategor
   return <Modal title={category ? "Edit category" : "Add category"} onClose={() => { if (!busy) onClose(); }}>
     <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void save({ type: "saveCategory", id: category?.id, name: form.get("name"), requiresPreparation: form.get("preparation") === "on" }); }}>
       <fieldset disabled={busy} className="space-y-4"><label className="block text-sm font-medium">Category name<input name="name" required maxLength={80} defaultValue={category?.name ?? ""} className={inputStyle} autoFocus /></label>
-        <label className="flex items-center gap-3 text-sm"><input name="preparation" type="checkbox" defaultChecked={category?.requiresPreparation ?? true} className="h-4 w-4 accent-blue-600" />Requires kitchen preparation</label>
+        <label className="flex items-center gap-3 text-sm"><input name="preparation" type="checkbox" defaultChecked={category?.requiresPreparation ?? true} className="h-4 w-4 accent-amber-600" />Requires kitchen preparation</label>
         <p className="text-xs text-slate-500">Products inherit this setting unless overridden. Existing orders keep their original preparation settings.</p></fieldset>
       <FormError error={error} /><div className="flex justify-end gap-2"><button type="button" disabled={busy} className={buttonStyle} onClick={onClose}>Cancel</button><button disabled={busy} className={primaryStyle}>{busy ? "Saving…" : "Save category"}</button></div>
     </form>

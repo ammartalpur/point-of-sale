@@ -17,7 +17,7 @@ export default async function TerminalPage() {
   const menu = await getTerminalMenu();
 
   return (
-    <div className="min-h-screen bg-[#07111f]">
+    <div className="min-h-screen bg-[#17110d]">
       {/* We pass the data into an interactive Client Component */}
       <TerminalClient categories={menu.categories} deals={menu.deals} coupons={menu.coupons} generatedAt={new Date().toISOString()} cashier={{ id: session.id, email: session.email }} />
     </div>

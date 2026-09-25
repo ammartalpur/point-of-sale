@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { updateOrderStatus } from "./action";
+import OtaqBrand from "@/app/components/OtaqBrand";
 
 import type { KitchenOrder } from "@/app/lib/client-data";
 
@@ -50,19 +51,20 @@ export default function KitchenClient({
   };
 
   return (
-    <div className="min-h-screen bg-[#07111f] p-6 font-sans text-slate-100">
+    <div className="min-h-screen bg-[#17110d] p-6 font-sans text-slate-100">
       <header className="mb-8 flex items-center justify-between border-b border-white/7 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white">
-            Kitchen Display System
-          </h1>
-          <p className="text-slate-500">Live order queue</p>
+        <div className="flex items-center gap-5">
+          <OtaqBrand />
+          <div className="border-l border-white/10 pl-5">
+            <h1 className="text-2xl font-bold text-white">Kitchen display</h1>
+            <p className="text-slate-500">Live order queue</p>
+          </div>
         </div>
       </header>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 lg:items-start">
         {initialOrders.length === 0 ? (
-          <div className="col-span-full rounded-2xl border border-white/7 bg-[#0d1b2a] py-20 text-center text-xl text-slate-500 font-medium">
+          <div className="col-span-full rounded-2xl border border-white/7 bg-[#211912] py-20 text-center text-xl text-slate-500 font-medium">
             No active orders. Kitchen is clear! 🎉
           </div>
         ) : (
@@ -77,7 +79,7 @@ export default function KitchenClient({
             return (
               <div
                 key={order.id}
-                className="flex max-h-150 flex-col overflow-hidden rounded-xl border border-white/8 bg-[#0d1b2a] shadow-xl shadow-black/20"
+                className="flex max-h-150 flex-col overflow-hidden rounded-xl border border-white/8 bg-[#211912] shadow-xl shadow-black/20"
               >
                 {/* Ticket Header */}
                 <div
@@ -120,13 +122,13 @@ export default function KitchenClient({
 
                 {/* Status Badge */}
                 <div className="flex items-center justify-between border-b border-white/7 bg-white/3 px-4 py-2">
-                  <div><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{order.orderType?.replace("_", "-") ?? "TYPE UNKNOWN"}</span>{order.tableNumber && <p className="text-xs font-bold text-sky-300">{order.tableNumber}</p>}{order.customerName && <p className="text-xs text-slate-400">{order.customerName}</p>}</div>
+                  <div><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{order.orderType?.replace("_", "-") ?? "TYPE UNKNOWN"}</span>{order.tableNumber && <p className="text-xs font-bold text-orange-300">{order.tableNumber}</p>}{order.customerName && <p className="text-xs text-slate-400">{order.customerName}</p>}</div>
                   <span
                     className={`text-xs font-bold px-2 py-1 rounded uppercase tracking-wider ${
                       order.status === "PENDING"
                         ? "bg-slate-400/15 text-slate-300"
                         : order.status === "PREPARING"
-                          ? "bg-sky-400/15 text-sky-300 animate-pulse"
+                          ? "bg-orange-400/15 text-orange-300 animate-pulse"
                           : "bg-emerald-400/15 text-emerald-300"
                     }`}
                   >
@@ -142,7 +144,7 @@ export default function KitchenClient({
                       className="flex items-start justify-between border-b border-white/7 pb-3 last:border-0 last:pb-0"
                     >
                       <div className="flex items-start gap-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-sky-500/15 text-lg font-bold text-sky-300">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-orange-500/15 text-lg font-bold text-orange-300">
                           {item.quantity}
                         </span>
                         <span className="text-lg font-medium leading-tight text-slate-100">
@@ -154,11 +156,11 @@ export default function KitchenClient({
                 </div>
 
                 {/* Updated Three-Stage Action Buttons */}
-                <div className="mt-auto border-t border-white/7 bg-[#091522] p-4">
+                <div className="mt-auto border-t border-white/7 bg-[#1b140f] p-4">
                   {order.status === "PENDING" ? (
                     <button
                       onClick={() => handleStatusChange(order.id, "PREPARING")}
-                      className="w-full rounded-lg bg-sky-500 py-4 text-lg font-bold text-white hover:bg-sky-400 shadow-md transition-all active:scale-95"
+                      className="w-full rounded-lg bg-orange-500 py-4 text-lg font-bold text-white hover:bg-orange-400 shadow-md transition-all active:scale-95"
                     >
                       Start Cooking
                     </button>

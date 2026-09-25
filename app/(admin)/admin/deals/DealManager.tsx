@@ -9,6 +9,7 @@ import type { MenuProduct } from "@/app/lib/menu-management";
 import ProductImageField from "../menu/ProductImageField";
 import { buttonStyle, FormError, inputStyle, Modal, primaryStyle } from "../menu/MenuControls";
 import { mutateDeal } from "./actions";
+import OtaqBrand from "@/app/components/OtaqBrand";
 
 type Editor = { kind: "deal"; deal?: DealData } | { kind: "confirm"; title: string; description: string; command: DealCommand };
 
@@ -39,21 +40,21 @@ export default function DealManager({ deals, products }: { deals: DealData[]; pr
     (view === "all" || (view === "archived" ? deal.isArchived : !deal.isArchived)));
   const saved = (notice: string) => { setMessage(notice); setEditor(null); };
   const confirm = (title: string, description: string, command: DealCommand) => setEditor({ kind: "confirm", title, description, command });
-  return <main className="min-h-screen bg-[#07111f] px-4 py-8 text-slate-100 sm:px-8">
+  return <main className="min-h-screen bg-[#17110d] px-4 py-8 text-slate-100 sm:px-8">
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
-        <div><Link href="/admin/dashboard" className="text-sm font-medium text-sky-400 hover:text-sky-300">← Dashboard</Link>
+        <div><Link href="/admin/dashboard" className="text-sm font-medium text-orange-400 hover:text-orange-300">← Dashboard</Link>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Combos & deals</h1>
           <p className="mt-1 text-sm text-slate-500">Bundle products at one fixed price. Component stock is deducted when the deal is sold.</p></div>
-        <button className={primaryStyle} onClick={() => setEditor({ kind: "deal" })} disabled={products.length === 0}>+ Create deal</button>
+        <div className="flex flex-wrap items-center gap-4"><OtaqBrand /><button className={primaryStyle} onClick={() => setEditor({ kind: "deal" })} disabled={products.length === 0}>+ Create deal</button></div>
       </header>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[["Total deals", deals.length], ["Active", deals.filter((d) => !d.isArchived && d.isActive).length],
           ["Available now", deals.filter((d) => d.available).length], ["Archived", deals.filter((d) => d.isArchived).length]].map(([label, count]) =>
-          <div key={label} className="rounded-xl border border-white/7 bg-[#0d1b2a] p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-white">{count}</p></div>)}
+          <div key={label} className="rounded-xl border border-white/7 bg-[#211912] p-4"><p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-white">{count}</p></div>)}
       </div>
       {message && <div role="status" className="flex items-center justify-between rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-300">{message}<button aria-label="Dismiss notification" onClick={() => setMessage("")}>✕</button></div>}
-      <section className="overflow-hidden rounded-xl border border-white/7 bg-[#0d1b2a]">
+      <section className="overflow-hidden rounded-xl border border-white/7 bg-[#211912]">
         <div className="flex flex-wrap items-end gap-3 border-b border-white/7 p-4">
           <label className="min-w-48 flex-1 text-xs font-medium text-slate-500">Search deals<input value={search} onChange={(e) => setSearch(e.target.value)} className={inputStyle} placeholder="Deal name…" /></label>
           <label className="text-xs font-medium text-slate-500">Show<select value={view} onChange={(e) => setView(e.target.value)} className={inputStyle}><option value="active">Current deals</option><option value="archived">Archived</option><option value="all">All deals</option></select></label>
@@ -61,9 +62,9 @@ export default function DealManager({ deals, products }: { deals: DealData[]; pr
         <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">{visible.map((deal) => {
           const regular = deal.items.reduce((sum, item) => sum + Number(item.product.basePrice) * item.quantity, 0);
           const status = deal.isArchived ? "Archived" : !deal.isActive ? "Paused" : deal.available ? "Available" : "Unavailable from stock/catalog";
-          return <article key={deal.id} aria-label={deal.name} className="overflow-hidden rounded-xl border border-white/8 bg-[#101e2e]">
-            {deal.imageUrl ? <Image src={deal.imageUrl} alt={deal.name} width={640} height={240} className="h-36 w-full bg-white/5 object-cover" /> : <div className="flex h-36 items-center justify-center bg-linear-to-br from-violet-500/10 to-sky-500/10 text-sm text-slate-500">No deal image</div>}
-            <div className="space-y-4 p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-white">{deal.name}</h2><p className="text-xl font-bold text-sky-400">Rs {deal.price}</p><p className="text-xs text-slate-500">Regular value Rs {regular.toFixed(2)}</p></div>
+          return <article key={deal.id} aria-label={deal.name} className="overflow-hidden rounded-xl border border-white/8 bg-[#2a1f17]">
+            {deal.imageUrl ? <Image src={deal.imageUrl} alt={deal.name} width={640} height={240} className="h-36 w-full bg-white/5 object-cover" /> : <div className="flex h-36 items-center justify-center bg-linear-to-br from-teal-500/10 to-orange-500/10 text-sm text-slate-500">No deal image</div>}
+            <div className="space-y-4 p-4"><div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-white">{deal.name}</h2><p className="text-xl font-bold text-orange-400">Rs {deal.price}</p><p className="text-xs text-slate-500">Regular value Rs {regular.toFixed(2)}</p></div>
               <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${deal.available ? "bg-emerald-400/15 text-emerald-300" : "bg-slate-400/10 text-slate-400"}`}>{status}</span></div>
               <ul className="space-y-1 text-sm text-slate-400">{deal.items.map((item) => <li key={item.id}>{item.quantity} × {item.product.name}</li>)}</ul>
               <p className="text-xs text-slate-500">Up to {deal.maxQuantity} combo{deal.maxQuantity === 1 ? "" : "s"} from current stock · {deal.salesCount} recorded sale{deal.salesCount === 1 ? "" : "s"}</p>
@@ -101,7 +102,7 @@ function DealEditor({ deal, products, onClose, onSaved }: { deal?: DealData; pro
             <input aria-label={`Quantity for product ${index + 1}`} type="number" min="1" max="10000" step="1" required value={item.quantity} className={inputStyle} onChange={(e) => setItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: Number(e.target.value) } : row))} />
             <button type="button" className={`${buttonStyle} mt-1 text-red-600`} aria-label={`Remove product ${index + 1}`} onClick={() => setItems((current) => current.filter((_, rowIndex) => rowIndex !== index))}>✕</button>
           </div>)}</div><p className="mt-2 text-xs text-slate-500">A deal needs at least two total item units. Stock is tracked on each component product.</p></div>
-        <label className="flex items-center gap-3 text-sm"><input name="active" type="checkbox" defaultChecked={deal?.isActive ?? true} className="h-4 w-4 accent-blue-600" />Active at checkout</label>
+        <label className="flex items-center gap-3 text-sm"><input name="active" type="checkbox" defaultChecked={deal?.isActive ?? true} className="h-4 w-4 accent-amber-600" />Active at checkout</label>
         <ProductImageField value={imageUrl} onChange={setImageUrl} onUploadingChange={setUploading} />
       </fieldset>
       <FormError error={error} /><div className="flex justify-end gap-2"><button type="button" disabled={locked} className={buttonStyle} onClick={onClose}>Cancel</button><button disabled={locked} className={primaryStyle}>{uploading ? "Uploading…" : busy ? "Saving…" : "Save deal"}</button></div>

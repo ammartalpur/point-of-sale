@@ -49,7 +49,7 @@ export default function ProductEditor({ product, categories, onClose, onSaved }:
           </select>
         </label>
         <label className="flex items-center gap-3 text-sm font-medium">
-          <input type="checkbox" name="isAvailable" defaultChecked={product?.isAvailable ?? true} className="h-4 w-4 accent-blue-600" />Available for sale
+          <input type="checkbox" name="isAvailable" defaultChecked={product?.isAvailable ?? true} className="h-4 w-4 accent-amber-600" />Available for sale
         </label>
         <p className="text-xs text-slate-500">A product also needs stock and an active category to appear at checkout.</p>
         <ProductImageField value={imageUrl} onChange={setImageUrl} onUploadingChange={setUploading} />

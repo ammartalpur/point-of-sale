@@ -48,11 +48,11 @@ export default function ProductImageField({ value, onChange, onUploadingChange }
       </div>
     </div>
     {configured && <label className="block text-sm font-medium">Upload image
-      <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" disabled={uploading} className="mt-2 block w-full text-xs text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-400/15 file:px-3 file:py-2 file:font-medium file:text-sky-300"
+      <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" disabled={uploading} className="mt-2 block w-full text-xs text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-orange-400/15 file:px-3 file:py-2 file:font-medium file:text-orange-300"
         onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; if (file) void upload(file); }} />
       <span className="mt-1 block text-xs font-normal text-slate-500">JPG, PNG, WebP or AVIF · up to 8 MB</span>
     </label>}
-    {uploading && <p role="status" className="text-sm text-sky-400">Uploading image…</p>}
+    {uploading && <p role="status" className="text-sm text-orange-400">Uploading image…</p>}
     <label className="block text-sm font-medium">Image URL (optional)
       <input type="url" disabled={uploading} value={value} onChange={(event) => onChange(event.target.value)} className={inputStyle} placeholder="https://res.cloudinary.com/…" maxLength={2000} />
     </label>

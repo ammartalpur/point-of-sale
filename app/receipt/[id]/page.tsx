@@ -1,6 +1,7 @@
 import { prisma } from "@/app/lib/prisma";
 import { notFound } from "next/navigation";
 import PrintHelper from "./PrintHelper";
+import OtaqBrand from "@/app/components/OtaqBrand";
 
 // 1. In Next.js 15+, dynamic params are Promises that must be awaited.
 export default async function ReceiptPage({
@@ -26,7 +27,7 @@ export default async function ReceiptPage({
 
   // 4. Render the 80mm thermal receipt layout
   return (
-    <div className="min-h-screen bg-[#07111f] py-8 flex justify-center print:py-0 print:bg-white">
+    <div className="min-h-screen bg-[#17110d] py-8 flex justify-center print:py-0 print:bg-white">
       {/* This automatically opens the print/PDF dialog */}
       <PrintHelper />
 
@@ -34,11 +35,9 @@ export default async function ReceiptPage({
       <div className="w-full max-w-[80mm] rounded-xl bg-white p-4 shadow-2xl shadow-black/30 print:rounded-none print:shadow-none print:p-0 text-black font-mono text-sm">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold uppercase tracking-wider">
-            My POS Store
-          </h1>
-          <p className="text-xs mt-1">123 Tech Street, Hyderabad</p>
-          <p className="text-xs">Phone: +92 300 1234567</p>
+          <OtaqBrand inverted subtitle="Restaurant" className="mb-3 justify-center font-sans" />
+          <p className="text-xs mt-1">Near M-9 Toll Plaza, Gadap Town, Karachi</p>
+          <p className="text-xs">Phone: +92 309 2067977 · +92 333 2449455</p>
         </div>
 
         {/* Order Meta Data */}

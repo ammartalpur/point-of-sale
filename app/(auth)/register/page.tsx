@@ -3,16 +3,17 @@
 import { useActionState } from "react";
 import { registerAction } from "../actions";
 import Link from "next/link";
+import OtaqBrand from "@/app/components/OtaqBrand";
 
 export default function RegisterPage() {
   const [state, formAction] = useActionState(registerAction, { error: "" });
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07111f] p-4 text-slate-100">
-      <div className="absolute -left-32 top-10 h-80 w-80 rounded-full bg-sky-500/10 blur-3xl" />
-      <div className="absolute -right-32 bottom-10 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl" />
-      <div className="relative w-full max-w-md rounded-2xl border border-white/8 bg-[#0d1b2a] p-8 shadow-2xl shadow-black/30">
-        <div className="mx-auto mb-5 grid h-12 w-12 place-items-center rounded-xl bg-linear-to-br from-sky-400 to-blue-600 text-xl font-black">P</div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#17110d] p-4 text-slate-100">
+      <div className="absolute -left-32 top-10 h-80 w-80 rounded-full bg-orange-500/10 blur-3xl" />
+      <div className="absolute -right-32 bottom-10 h-80 w-80 rounded-full bg-teal-500/10 blur-3xl" />
+      <div className="relative w-full max-w-md rounded-2xl border border-white/8 bg-[#211912] p-8 shadow-2xl shadow-black/30">
+        <OtaqBrand className="mb-6 justify-center" />
         <h1 className="text-center text-3xl font-bold text-white">Create account</h1>
         <p className="mb-7 mt-2 text-center text-sm text-slate-500">Create the initial administrator account</p>
 
@@ -25,7 +26,7 @@ export default function RegisterPage() {
               name="email"
               type="email"
               required
-              className="mt-1 block w-full rounded-lg border border-white/10 bg-[#07111f] px-3 py-2.5 text-white outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/15"
+              className="mt-1 block w-full rounded-lg border border-white/10 bg-[#17110d] px-3 py-2.5 text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/15"
             />
           </div>
 
@@ -39,7 +40,7 @@ export default function RegisterPage() {
               required
               minLength={8}
               maxLength={128}
-              className="mt-1 block w-full rounded-lg border border-white/10 bg-[#07111f] px-3 py-2.5 text-white outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/15"
+              className="mt-1 block w-full rounded-lg border border-white/10 bg-[#17110d] px-3 py-2.5 text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/15"
             />
           </div>
 
@@ -49,7 +50,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-sky-500 py-3 font-semibold text-white shadow-lg shadow-sky-950/30 hover:bg-sky-400"
+            className="w-full rounded-lg bg-orange-500 py-3 font-semibold text-white shadow-lg shadow-orange-950/30 hover:bg-orange-400"
           >
             Create administrator
           </button>
@@ -57,7 +58,7 @@ export default function RegisterPage() {
 
         <p className="mt-5 text-center text-sm text-slate-500">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-sky-400 hover:text-sky-300">
+          <Link href="/login" className="font-medium text-orange-400 hover:text-orange-300">
             Log in
           </Link>
         </p>

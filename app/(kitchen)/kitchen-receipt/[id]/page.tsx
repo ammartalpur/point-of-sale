@@ -1,6 +1,7 @@
 import { prisma } from "@/app/lib/prisma";
 import { notFound } from "next/navigation";
 import PrintHelper from "@/app/receipt/[id]/PrintHelper";
+import OtaqBrand from "@/app/components/OtaqBrand";
 
 export default async function KitchenReceiptPage({
   params,
@@ -26,13 +27,14 @@ export default async function KitchenReceiptPage({
   );
 
   return (
-    <div className="min-h-screen bg-[#07111f] py-8 flex justify-center print:py-0 print:bg-white">
+    <div className="min-h-screen bg-[#17110d] py-8 flex justify-center print:py-0 print:bg-white">
       <PrintHelper />
 
       {/* 80mm Thermal Printer Width */}
       <div className="w-full max-w-[80mm] rounded-xl bg-white p-4 shadow-2xl shadow-black/30 print:rounded-none print:shadow-none print:p-0 text-black font-mono text-sm">
         {/* Header */}
         <div className="text-center mb-4">
+          <OtaqBrand inverted subtitle="Restaurant" className="mb-3 justify-center font-sans" />
           <h1 className="text-2xl font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-2">
             KITCHEN TICKET
           </h1>

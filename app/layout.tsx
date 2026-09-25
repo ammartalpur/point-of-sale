@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 export const metadata: Metadata = {
-  title: "POS Control",
-  description: "Restaurant point of sale, kitchen, menu, deals and reporting.",
+  title: "Otaq Restaurant POS",
+  description: "Otaq Restaurant point of sale, kitchen, menu, deals and reporting.",
 };
 
 export default function RootLayout({
