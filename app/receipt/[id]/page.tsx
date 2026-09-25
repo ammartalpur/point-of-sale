@@ -16,9 +16,8 @@ export default async function ReceiptPage({
     where: { id },
     include: {
       cashier: { select: { email: true } },
-      items: {
-        include: { product: { select: { name: true } } },
-      },
+      items: true,
+      deals: { include: { items: { select: { id: true, productName: true, quantity: true } } } },
     },
   });
 
@@ -27,12 +26,12 @@ export default async function ReceiptPage({
 
   // 4. Render the 80mm thermal receipt layout
   return (
-    <div className="bg-gray-100 min-h-screen flex justify-center py-8 print:py-0 print:bg-white">
+    <div className="min-h-screen bg-[#07111f] py-8 flex justify-center print:py-0 print:bg-white">
       {/* This automatically opens the print/PDF dialog */}
       <PrintHelper />
 
       {/* max-w-[80mm] forces the exact width of a standard thermal POS printer. */}
-      <div className="w-full max-w-[80mm] bg-white p-4 shadow-xl print:shadow-none print:p-0 text-black font-mono text-sm">
+      <div className="w-full max-w-[80mm] rounded-xl bg-white p-4 shadow-2xl shadow-black/30 print:rounded-none print:shadow-none print:p-0 text-black font-mono text-sm">
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold uppercase tracking-wider">
@@ -62,6 +61,11 @@ export default async function ReceiptPage({
             <span>Cashier:</span>
             <span>{order.cashier.email.split("@")[0]}</span>
           </div>
+          <div className="flex justify-between"><span>Order type:</span><span>{order.orderType?.replace("_", "-") ?? "Not recorded"}</span></div>
+          {order.tableNumber && <div className="flex justify-between"><span>Table:</span><span>{order.tableNumber}</span></div>}
+          {order.customerName && <div className="flex justify-between"><span>Customer:</span><span>{order.customerName}</span></div>}
+          {order.customerPhone && <div className="flex justify-between"><span>Phone:</span><span>{order.customerPhone}</span></div>}
+          {order.deliveryAddress && <div><span>Delivery:</span><p className="mt-0.5 font-medium">{order.deliveryAddress}</p></div>}
         </div>
 
         {/* Itemized List */}
@@ -73,11 +77,21 @@ export default async function ReceiptPage({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {order.items.map((item) => (
+            {order.deals.map((deal) => (
+              <tr key={deal.id}>
+                <td className="py-2 pr-2">
+                  <div className="font-medium">{deal.quantity} x {deal.name}</div>
+                  <div className="text-[10px] text-gray-500">{deal.items.map((item) => `${item.quantity}× ${item.productName}`).join(", ")}</div>
+                  <div className="text-[10px] text-gray-500">@ Rs {Number(deal.unitPrice).toFixed(2)}</div>
+                </td>
+                <td className="py-2 text-right align-top">Rs {(Number(deal.unitPrice) * deal.quantity).toFixed(2)}</td>
+              </tr>
+            ))}
+            {order.items.filter((item) => item.orderDealId === null).map((item) => (
               <tr key={item.id}>
                 <td className="py-2 pr-2">
                   <div className="font-medium">
-                    {item.quantity} x {item.product.name}
+                    {item.quantity} x {item.productName}
                   </div>
                   <div className="text-[10px] text-gray-500">
                     @ Rs {Number(item.priceAtTime).toFixed(2)}
@@ -93,6 +107,8 @@ export default async function ReceiptPage({
 
         {/* Totals */}
         <div className="border-t border-dashed border-gray-400 pt-3 mb-6">
+          {Number(order.discountAmount) > 0 && <><div className="flex justify-between text-xs"><span>Subtotal</span><span>Rs {Number(order.subtotal).toFixed(2)}</span></div>
+            <div className="flex justify-between text-xs"><span>Discount</span><span>- Rs {Number(order.discountAmount).toFixed(2)}</span></div></>}
           <div className="flex justify-between text-base font-bold">
             <span>TOTAL</span>
             <span>Rs {Number(order.totalAmount).toFixed(2)}</span>
@@ -101,6 +117,9 @@ export default async function ReceiptPage({
             <span>Payment Method</span>
             <span className="uppercase font-medium">{order.paymentMethod}</span>
           </div>
+          {order.couponCode && <div className="mt-1 flex justify-between text-xs"><span>Coupon</span><span>{order.couponCode}</span></div>}
+          {order.cashReceived !== null && <div className="mt-1 flex justify-between text-xs"><span>Cash received</span><span>Rs {Number(order.cashReceived).toFixed(2)}</span></div>}
+          {order.changeGiven !== null && <div className="flex justify-between text-xs"><span>Change</span><span>Rs {Number(order.changeGiven).toFixed(2)}</span></div>}
         </div>
 
         {/* Footer */}

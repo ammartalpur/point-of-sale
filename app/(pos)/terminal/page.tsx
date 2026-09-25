@@ -10,15 +10,16 @@ export default async function TerminalPage() {
   const cookie = cookieStore.get("session")?.value;
   if (!cookie) redirect("/login");
 
-  const session = await decrypt(cookie);
+  const session = await decrypt(cookie).catch(() => null);
+  if (!session || typeof session.id !== "string" || typeof session.email !== "string") redirect("/login");
 
   // 2. Fetch the live menu (only items in stock)
-  const menuCategories = await getTerminalMenu();
+  const menu = await getTerminalMenu();
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#07111f]">
       {/* We pass the data into an interactive Client Component */}
-      <TerminalClient categories={menuCategories} cashier={session} />
+      <TerminalClient categories={menu.categories} deals={menu.deals} coupons={menu.coupons} generatedAt={new Date().toISOString()} cashier={{ id: session.id, email: session.email }} />
     </div>
   );
 }

@@ -14,13 +14,7 @@ export default async function KitchenReceiptPage({
     where: { id },
     include: {
       cashier: { select: { email: true } }, // <-- Added cashier fetch
-      items: {
-        include: {
-          product: {
-            include: { category: true },
-          },
-        },
-      },
+      items: true,
     },
   });
 
@@ -28,15 +22,15 @@ export default async function KitchenReceiptPage({
 
   // Filter items so the chef ONLY sees food that needs cooking
   const cookingItems = order.items.filter(
-    (item) => item.product.category.requiresPreparation,
+    (item) => item.requiresPreparation,
   );
 
   return (
-    <div className="bg-gray-100 min-h-screen flex justify-center py-8 print:py-0 print:bg-white">
+    <div className="min-h-screen bg-[#07111f] py-8 flex justify-center print:py-0 print:bg-white">
       <PrintHelper />
 
       {/* 80mm Thermal Printer Width */}
-      <div className="w-full max-w-[80mm] bg-white p-4 shadow-xl print:shadow-none print:p-0 text-black font-mono text-sm">
+      <div className="w-full max-w-[80mm] rounded-xl bg-white p-4 shadow-2xl shadow-black/30 print:rounded-none print:shadow-none print:p-0 text-black font-mono text-sm">
         {/* Header */}
         <div className="text-center mb-4">
           <h1 className="text-2xl font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-2">
@@ -68,6 +62,11 @@ export default async function KitchenReceiptPage({
               {order.cashier.email.split("@")[0]}
             </span>
           </div>
+          <div className="flex justify-between"><span className="font-bold">Type:</span><span>{order.orderType?.replace("_", "-") ?? "Not recorded"}</span></div>
+          {order.tableNumber && <div className="flex justify-between"><span className="font-bold">Table:</span><span>{order.tableNumber}</span></div>}
+          {order.customerName && <div className="flex justify-between"><span className="font-bold">Customer:</span><span>{order.customerName}</span></div>}
+          {order.customerPhone && <div className="flex justify-between"><span className="font-bold">Phone:</span><span>{order.customerPhone}</span></div>}
+          {order.deliveryAddress && <div><span className="font-bold">Address:</span><p>{order.deliveryAddress}</p></div>}
         </div>
 
         {/* Itemized List - NO PRICES */}
@@ -85,7 +84,7 @@ export default async function KitchenReceiptPage({
                   {item.quantity}
                 </td>
                 <td className="py-4 pl-2 text-lg font-bold uppercase leading-tight">
-                  {item.product.name}
+                  {item.productName}
                 </td>
               </tr>
             ))}

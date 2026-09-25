@@ -1,195 +1,275 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { decrypt } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
-import { Prisma } from "@prisma/client";
-import { logoutAction } from "@/app/(auth)/actions";
-import Link from "next/link";
-import RecentOrdersTable from "./RecentOrdersTable";
+import {
+  buildPeakHours,
+  buildRevenueTrend,
+  getDashboardPeriod,
+} from "@/app/lib/dashboard";
+import DashboardClient from "./DashboardClient";
 
-export default async function AdminDashboard() {
-  // 1. Fetch KPI Metrics
-  const [revenueData, orderCount] = await Promise.all([
-    prisma.order.aggregate({
-      _sum: { totalAmount: true },
-      where: { status: "COMPLETED" },
+export default async function AdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    range?: string | string[];
+  }>;
+}) {
+  const token = (await cookies()).get("session")?.value;
+  const session = token ? await decrypt(token).catch(() => null) : null;
+
+  if (!session?.id || typeof session.id !== "string") {
+    redirect("/login");
+  }
+
+  const user = await prisma.profile.findUnique({
+    where: { id: session.id },
+    select: { email: true, role: true },
+  });
+
+  if (!user || user.role !== "admin") {
+    redirect("/terminal");
+  }
+
+  const params = await searchParams;
+  const requestedRange = Array.isArray(params.range)
+    ? params.range[0]
+    : params.range;
+  const now = new Date();
+  const period = getDashboardPeriod(requestedRange, now);
+  const today = getDashboardPeriod("today", now);
+  const completedWhere = {
+    status: "COMPLETED" as const,
+    completedAt: { gte: period.start, lte: period.end },
+  };
+
+  const [
+    periodOrders,
+    todaySales,
+    allTimeSales,
+    topItemsRaw,
+    categorySalesRaw,
+    paymentMethodsRaw,
+    liveOrdersRaw,
+    inventoryAlertsRaw,
+    recentOrdersRaw,
+    activeProductCount,
+    activeCategoryCount,
+    activeDealsRaw,
+  ] = await Promise.all([
+    prisma.order.findMany({
+      where: completedWhere,
+      select: { completedAt: true, totalAmount: true },
+      orderBy: { completedAt: "asc" },
     }),
-    prisma.order.count({
+    prisma.order.aggregate({
+      where: {
+        status: "COMPLETED",
+        completedAt: { gte: today.start, lte: today.end },
+      },
+      _sum: { totalAmount: true },
+    }),
+    prisma.order.aggregate({
       where: { status: "COMPLETED" },
+      _sum: { totalAmount: true },
+      _count: { id: true },
+    }),
+    prisma.orderItem.groupBy({
+      by: ["productName", "categoryName"],
+      where: { order: completedWhere },
+      _sum: { quantity: true, lineTotal: true },
+      orderBy: { _sum: { quantity: "desc" } },
+      take: 5,
+    }),
+    prisma.orderItem.groupBy({
+      by: ["categoryName"],
+      where: { order: completedWhere },
+      _sum: { lineTotal: true },
+      orderBy: { _sum: { lineTotal: "desc" } },
+    }),
+    prisma.order.groupBy({
+      by: ["paymentMethod"],
+      where: completedWhere,
+      _sum: { totalAmount: true },
+      orderBy: { _sum: { totalAmount: "desc" } },
+    }),
+    prisma.order.findMany({
+      where: { status: { in: ["PENDING", "PREPARING", "READY"] } },
+      orderBy: { createdAt: "asc" },
+      take: 8,
+      select: {
+        id: true,
+        createdAt: true,
+        status: true,
+        orderType: true,
+        totalAmount: true,
+        items: {
+          select: { productName: true, quantity: true },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    }),
+    prisma.product.findMany({
+      where: {
+        isArchived: false,
+        stock: { lte: 10 },
+        category: { isArchived: false },
+      },
+      orderBy: [{ stock: "asc" }, { name: "asc" }],
+      take: 7,
+      select: {
+        id: true,
+        name: true,
+        stock: true,
+        category: { select: { name: true } },
+      },
+    }),
+    prisma.order.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 7,
+      select: {
+        id: true,
+        createdAt: true,
+        status: true,
+        orderType: true,
+        paymentMethod: true,
+        totalAmount: true,
+        tableNumber: true,
+        customerName: true,
+        items: {
+          select: { productName: true, quantity: true },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    }),
+    prisma.product.count({
+      where: { isArchived: false, category: { isArchived: false } },
+    }),
+    prisma.category.count({ where: { isArchived: false } }),
+    prisma.deal.findMany({
+      where: { isArchived: false, isActive: true },
+      select: {
+        id: true,
+        items: {
+          select: {
+            quantity: true,
+            product: {
+              select: {
+                stock: true,
+                isAvailable: true,
+                isArchived: true,
+                category: { select: { isArchived: true } },
+              },
+            },
+          },
+        },
+      },
     }),
   ]);
 
-  const totalRevenue = Number(revenueData._sum.totalAmount ?? 0);
-
-  // 2. Fetch Top Selling Products
-  // We use 'as unknown as' to break the strict type-checking chain
-  const topItemsAgg = (await prisma.orderItem.groupBy({
-    by: ["productId"],
-    _sum: { quantity: true },
-    orderBy: { _sum: { quantity: "desc" } },
-    take: 5,
-  })) as unknown as Array<{
-    productId: string;
-    _sum: { quantity: number | null };
-  }>;
-
-  const topItemIds = topItemsAgg.map((item) => item.productId);
-
-  const products = await prisma.product.findMany({
-    where: { id: { in: topItemIds } },
-    select: { id: true, name: true },
-  });
-
-  const topProducts = topItemsAgg.map((agg) => {
-    const product = products.find((p) => p.id === agg.productId);
-    return {
-      name: product?.name ?? "Unknown Item",
-      sold: agg._sum.quantity ?? 0,
-    };
-  });
-
-  // 3. Fetch Recent Transactions
-  const rawRecentOrders = await prisma.order.findMany({
-    take: 5,
-    orderBy: { createdAt: "desc" },
-    include: {
-      cashier: { select: { email: true } },
-      items: {
-        include: { product: { select: { name: true } } },
-      },
-    },
-  });
-
-  type RecentOrderPayload = Prisma.OrderGetPayload<{
-    include: {
-      cashier: { select: { email: true } };
-      items: { include: { product: { select: { name: true } } } };
-    };
-  }>;
-
-  // 4. Transform data for client usage (Safe types)
-  const safeRecentOrders = rawRecentOrders.map((order: RecentOrderPayload) => ({
-    ...order,
-    totalAmount: Number(order.totalAmount),
-    items: order.items.map((item) => ({
-      ...item,
-      priceAtTime: Number(item.priceAtTime ?? 0),
-    })),
-  }));
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-7xl">
-        <DashboardHeader />
-
-        <KPICards totalRevenue={totalRevenue} orderCount={orderCount} />
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <TopSellingItems products={topProducts} />
-
-          <div className="col-span-1 lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-6 text-xl font-bold text-gray-900">
-              Recent Transactions
-            </h2>
-            <RecentOrdersTable orders={safeRecentOrders} />
-          </div>
-        </div>
-      </div>
-    </div>
+  const periodRevenue = periodOrders.reduce(
+    (sum, order) => sum + Number(order.totalAmount),
+    0,
   );
-}
+  const periodOrderCount = periodOrders.length;
+  const availableDealCount = activeDealsRaw.filter((deal) =>
+    deal.items.every(
+      (item) =>
+        item.product.isAvailable &&
+        !item.product.isArchived &&
+        !item.product.category.isArchived &&
+        item.product.stock >= item.quantity,
+    ),
+  ).length;
 
-// --- Helper Components for Cleanliness ---
-
-function DashboardHeader() {
   return (
-    <div className="mb-8 flex items-center justify-between rounded-xl bg-white p-6 shadow-sm border border-gray-200">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Live sales analytics and system overview.
-        </p>
-      </div>
-      <div className="flex gap-4">
-        <Link
-          href="/admin/menu"
-          className="rounded-lg bg-blue-50 px-4 py-2 font-medium text-blue-700 hover:bg-blue-100 transition-colors"
-        >
-          Manage Menu
-        </Link>
-        <form action={logoutAction}>
-          <button className="rounded-lg bg-red-50 px-4 py-2 font-medium text-red-600 hover:bg-red-100 transition-colors">
-            Log Out
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function KPICards({
-  totalRevenue,
-  orderCount,
-}: {
-  totalRevenue: number;
-  orderCount: number;
-}) {
-  return (
-    <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="text-sm font-medium text-gray-500">Total Revenue</h3>
-        <p className="mt-2 text-4xl font-bold text-gray-900">
-          Rs {totalRevenue.toFixed(2)}
-        </p>
-      </div>
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="text-sm font-medium text-gray-500">
-          Total Orders Processed
-        </h3>
-        <p className="mt-2 text-4xl font-bold text-gray-900">{orderCount}</p>
-      </div>
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="text-sm font-medium text-gray-500">
-          Average Order Value
-        </h3>
-        <p className="mt-2 text-4xl font-bold text-gray-900">
-          Rs {(orderCount > 0 ? totalRevenue / orderCount : 0).toFixed(2)}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function TopSellingItems({
-  products,
-}: {
-  products: { name: string; sold: number }[];
-}) {
-  const maxSold = products[0]?.sold ?? 0;
-  return (
-    <div className="col-span-1 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-6 text-xl font-bold text-gray-900">
-        Top Selling Items
-      </h2>
-      <div className="space-y-6">
-        {products.length === 0 ? (
-          <p className="text-sm text-gray-500 italic">No sales data yet.</p>
-        ) : (
-          products.map((item, index) => (
-            <div key={index}>
-              <div className="mb-1 flex justify-between text-sm font-medium text-gray-700">
-                <span>{item.name}</span>
-                <span>{item.sold} sold</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gray-100">
-                <div
-                  className="h-2 rounded-full bg-blue-600"
-                  style={{
-                    width: `${Math.max((item.sold / maxSold) * 100, 10)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+    <DashboardClient
+      data={{
+        range: period.key,
+        periodLabel:
+          period.key === "today"
+            ? "Today"
+            : period.key === "week"
+              ? "Last 7 days"
+              : "Last 30 days",
+        generatedAt: now.toISOString(),
+        metrics: {
+          todayRevenue: Number(todaySales._sum.totalAmount ?? 0),
+          revenue: periodRevenue,
+          orderCount: periodOrderCount,
+          averageOrder:
+            periodOrderCount > 0 ? periodRevenue / periodOrderCount : 0,
+          averagePerDay: periodRevenue / period.days,
+        },
+        allTime: {
+          revenue: Number(allTimeSales._sum.totalAmount ?? 0),
+          orders: allTimeSales._count.id,
+        },
+        trend: buildRevenueTrend(
+          periodOrders.map((order) => ({
+            completedAt: order.completedAt!,
+            totalAmount: Number(order.totalAmount),
+          })),
+          period,
+        ),
+        topItems: topItemsRaw.map((item) => ({
+          name: item.productName,
+          category: item.categoryName,
+          quantity: item._sum.quantity ?? 0,
+          revenue: Number(item._sum.lineTotal ?? 0),
+        })),
+        categorySales: categorySalesRaw.map((category) => ({
+          label: category.categoryName,
+          value: Number(category._sum.lineTotal ?? 0),
+        })),
+        paymentSales: paymentMethodsRaw.map((method) => ({
+          label: method.paymentMethod,
+          value: Number(method._sum.totalAmount ?? 0),
+        })),
+        peakHours: buildPeakHours(
+          periodOrders.map((order) => ({ completedAt: order.completedAt! })),
+        ),
+        liveOrders: liveOrdersRaw.map((order) => ({
+          id: order.id,
+          createdAt: order.createdAt.toISOString(),
+          status: order.status,
+          orderType: order.orderType,
+          totalAmount: Number(order.totalAmount),
+          itemSummary: order.items
+            .map((item) => `${item.quantity}× ${item.productName}`)
+            .join(", "),
+        })),
+        inventory: inventoryAlertsRaw.map((product) => ({
+          id: product.id,
+          name: product.name,
+          stock: product.stock,
+          category: product.category.name,
+        })),
+        recentOrders: recentOrdersRaw.map((order) => ({
+          id: order.id,
+          createdAt: order.createdAt.toISOString(),
+          status: order.status,
+          orderType: order.orderType,
+          paymentMethod: order.paymentMethod,
+          totalAmount: Number(order.totalAmount),
+          tableNumber: order.tableNumber,
+          customerName: order.customerName,
+          itemCount: order.items.reduce(
+            (sum, item) => sum + item.quantity,
+            0,
+          ),
+          itemSummary: order.items
+            .map((item) => `${item.quantity}× ${item.productName}`)
+            .join(", "),
+        })),
+        catalog: {
+          products: activeProductCount,
+          categories: activeCategoryCount,
+          availableDeals: availableDealCount,
+        },
+      }}
+      adminEmail={user.email}
+    />
   );
 }

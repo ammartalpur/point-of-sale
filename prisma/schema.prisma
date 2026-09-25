@@ -1,14 +1,14 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// Replaces the Supabase profiles table. The ID will be the Clerk User ID.
 model Profile {
-  id        String   @id 
+  id        String   @id
   email     String   @unique
   password  String
   role      String   @default("cashier") // 'admin' or 'cashier'
@@ -17,26 +17,70 @@ model Profile {
 }
 
 model Category {
-  id        String    @id @default(uuid())
-  name      String
+  id                  String    @id @default(uuid())
+  name                String
   requiresPreparation Boolean   @default(true) // <-- NEW: False for drinks/snacks
-  createdAt DateTime  @default(now())
-  products  Product[]
+  createdAt           DateTime  @default(now())
+  isArchived          Boolean   @default(false)
+  products            Product[]
 }
 
 model Product {
-  id          String            @id @default(uuid())
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  name        String
-  basePrice   Decimal           @db.Decimal(10, 2)
-  imageUrl    String?
-  isAvailable Boolean           @default(true)
-  stock       Int               @default(0)       // <-- NEW: Inventory tracking
-  createdAt   DateTime          @default(now())
-  
-  modifiers   ProductModifier[]
-  orderItems  OrderItem[]
+  id                  String   @id @default(uuid())
+  categoryId          String
+  category            Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name                String
+  basePrice           Decimal  @db.Decimal(10, 2)
+  imageUrl            String?
+  isAvailable         Boolean  @default(true)
+  stock               Int      @default(0) // <-- NEW: Inventory tracking
+  createdAt           DateTime @default(now())
+  isArchived          Boolean  @default(false)
+  // Null inherits the category setting; a product can override it.
+  requiresPreparation Boolean?
+
+  modifiers  ProductModifier[]
+  orderItems OrderItem[]
+  dealItems  DealItem[]
+}
+
+model Deal {
+  id         String      @id @default(uuid())
+  name       String
+  imageUrl   String?
+  price      Decimal     @db.Decimal(10, 2)
+  isActive   Boolean     @default(true)
+  isArchived Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  items      DealItem[]
+  orderDeals OrderDeal[]
+}
+
+model DealItem {
+  id        String  @id @default(uuid())
+  dealId    String
+  deal      Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity  Int     @default(1)
+
+  @@unique([dealId, productId])
+  @@index([productId])
+}
+
+model Coupon {
+  id              String       @id @default(uuid())
+  // Store uppercase, trimmed codes. Checkout uses the same normalization.
+  code            String       @unique
+  discountType    DiscountType
+  value           Decimal      @db.Decimal(10, 2)
+  minimumSubtotal Decimal      @default(0) @db.Decimal(10, 2)
+  expiresAt       DateTime?
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  orders          Order[]
 }
 
 model ProductModifier {
@@ -50,34 +94,96 @@ model ProductModifier {
 }
 
 model Order {
-  id            String      @id @default(uuid())
-  cashierId     String
-  
-  totalAmount   Decimal     @db.Decimal(10, 2)
-  paymentMethod String      // 'cash', 'card', 'wallet'
- status        OrderStatus @default(PENDING) // <-- NEW: Uses Enum instead of String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt        // <-- NEW: Tracks when status changes
- cashier       Profile     @relation(fields: [cashierId], references: [id])
-  items         OrderItem[]
+  id        String @id @default(uuid())
+  cashierId String
+
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  subtotal        Decimal       @db.Decimal(10, 2)
+  discountAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  discountType    DiscountType?
+  discountValue   Decimal?      @db.Decimal(10, 2)
+  couponId        String?
+  coupon          Coupon?       @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponCode      String?
+  // Null means not recorded by the legacy terminal; never invent historical data.
+  orderType       OrderType?
+  tableNumber     String?
+  customerName    String?
+  customerPhone   String?
+  deliveryAddress String?
+  cashReceived    Decimal?      @db.Decimal(10, 2)
+  changeGiven     Decimal?      @db.Decimal(10, 2)
+  completedAt     DateTime?
+  paymentMethod   String // 'cash', 'card', 'wallet'
+  status          OrderStatus   @default(PENDING) // <-- NEW: Uses Enum instead of String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt // <-- NEW: Tracks when status changes
+  cashier         Profile       @relation(fields: [cashierId], references: [id])
+  items           OrderItem[]
+  deals           OrderDeal[]
+
+  @@index([status, createdAt])
+  @@index([completedAt])
+  @@index([couponId])
+}
+
+// One sold deal, with immutable name/price and its component OrderItems.
+model OrderDeal {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dealId    String?
+  deal      Deal?       @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  name      String
+  quantity  Int
+  unitPrice Decimal     @db.Decimal(10, 2)
+  items     OrderItem[]
+
+  @@index([orderId])
+  @@index([dealId])
 }
 
 model OrderItem {
-  id          String           @id @default(uuid())
-  orderId     String
-  order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product          @relation(fields: [productId], references: [id])
-  modifierId  String?
-  modifier    ProductModifier? @relation(fields: [modifierId], references: [id])
-  quantity    Int              @default(1)
-  priceAtTime Decimal          @db.Decimal(10, 2)
-  createdAt   DateTime         @default(now())
+  id                  String           @id @default(uuid())
+  orderId             String
+  order               Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId           String
+  product             Product          @relation(fields: [productId], references: [id])
+  modifierId          String?
+  modifier            ProductModifier? @relation(fields: [modifierId], references: [id])
+  quantity            Int              @default(1)
+  priceAtTime         Decimal          @db.Decimal(10, 2)
+  productName         String
+  categoryName        String
+  requiresPreparation Boolean
+  // Component revenue is allocated in cents; totals, not rounded unit prices,
+  // are authoritative for deal components and discounted reporting.
+  lineSubtotal        Decimal          @db.Decimal(10, 2)
+  discountAmount      Decimal          @default(0) @db.Decimal(10, 2)
+  lineTotal           Decimal          @db.Decimal(10, 2)
+  orderDealId         String?
+  orderDeal           OrderDeal?       @relation(fields: [orderDealId], references: [id], onDelete: Restrict)
+  createdAt           DateTime         @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([orderDealId])
+}
+
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
 }
 
 enum OrderStatus {
-  PENDING     // Placed by cashier, waiting for chef to acknowledge
-  PREPARING   // Chef is cooking it
-  READY       // Food is done, waiting for cashier/waiter to grab it
-  COMPLETED   // Handed to customer
+  PENDING // Placed by cashier, waiting for chef to acknowledge
+  PREPARING // Chef is cooking it
+  READY // Food is done, waiting for cashier/waiter to grab it
+  COMPLETED // Handed to customer
 }

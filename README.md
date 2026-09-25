@@ -1,101 +1,88 @@
-# ProKitchen POS System
+# POS Control
 
-A high-performance, real-time Point of Sale (POS) and Kitchen Display System (KDS) designed for modern restaurant environments. Built with a focus on operational speed, data integrity, and real-time synchronization between the front-of-house and back-of-house.
+Restaurant point-of-sale application built with Next.js 16, React 19, Prisma 7,
+Neon PostgreSQL and Tailwind CSS.
 
----
+## Features
 
-## 🚀 Key Features
+- Cashier terminal with dine-in, takeaway and delivery orders
+- Cash/card payments, discounts, coupons, received cash and change
+- Product, category, stock, availability and image management
+- Combo/deal management with stock-aware availability
+- Kitchen order pipeline and printable kitchen tickets
+- Customer receipts with immutable sale snapshots
+- Real dashboard metrics, charts, inventory alerts and live order queue
 
-### 🛒 POS Terminal
-* **Dynamic Product Grid:** Image-rich, category-filtered product selection.
-* **Inventory Awareness:** Real-time stock tracking; prevents over-selling.
-* **Seamless Checkout:** Instant transaction processing with auto-receipt generation.
+## Local setup
 
-### 👨‍🍳 Kitchen Display System (KDS)
-* **Real-time Ticket Board:** Uses WebSockets (Pusher) for instant order notifications.
-* **Operational Pipeline:** Tracks order states from `PENDING` to `PREPARING`, `READY`, and finally `COMPLETED`.
-* **Wait-Time Analytics:** Visual "stress timers" (Green/Yellow/Red) help chefs prioritize orders.
-* **Dedicated Prep Tickets:** Stripped-down, high-visibility receipts for kitchen efficiency.
+Requires Node.js 20.19 or newer.
 
-### 📊 Admin Dashboard
-* **Menu & Inventory Control:** Full CRUD operations for categories and products.
-* **Cloudinary Integration:** Easy image management for menu items.
-* **Revenue Analytics:** Automated, real-time sales reporting and order counting.
+```bash
+npm ci
+cp .env.example .env.local
+npm run deploy:migrate
+npm run dev
+```
 
----
+Set the variables described in `.env.example` before running migrations. On a
+new database, `prisma migrate deploy` applies both committed migrations. On the
+existing database used during development, the baseline is already registered;
+see `prisma/SETUP.md` for its migration history.
 
-## 🛠 Tech Stack
+The `/register` page creates the first administrator only. Once any profile
+exists, public registration is disabled.
 
-* **Framework:** Next.js 15 (App Router)
-* **Language:** TypeScript
-* **Database:** PostgreSQL (via Neon)
-* **ORM:** Prisma
-* **Real-time:** Pusher
-* **Media:** Cloudinary
-* **Styling:** Tailwind CSS
+## Deploy to Vercel
 
----
+1. Push this repository to GitHub, GitLab or Bitbucket and import it into Vercel.
+2. Keep the detected framework preset as **Next.js** and the project root as the
+   repository root.
+3. Set the Node.js version to 20.19 or newer.
+4. Add these environment variables for Production and any Preview environment
+   that should run the application:
 
-## 🏗 System Architecture
+   | Variable | Required | Purpose |
+   | --- | --- | --- |
+   | `DATABASE_URL` | Yes | Neon pooled PostgreSQL URL ending in the `-pooler` host |
+   | `JWT_SECRET` | Yes | Unique random secret of at least 32 characters |
+   | `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | Optional | Enables direct image uploads |
+   | `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` | Optional | Cloudinary unsigned upload preset |
 
-The application is built on a clean, decoupled architecture:
-1. **Server Actions:** All database interactions are handled via secure Server Actions, ensuring sensitive business logic never leaves the server.
-2. **Relational Integrity:** Utilizes PostgreSQL foreign key constraints to ensure order history remains accurate even when menu items are modified.
-3. **Real-Time Event Loop:** Pub/Sub pattern via Pusher to keep the Kitchen and Cashier interfaces perfectly synced.
+   Generate the session secret locally with `openssl rand -base64 32`. Do not
+   commit its value. Public Cloudinary variables are included in the browser
+   bundle and must never contain a Cloudinary API secret.
+5. Apply committed database migrations once before sending production traffic:
 
-
-
----
-
-## ⚙️ Getting Started
-
-### Prerequisites
-* Node.js 18+
-* PostgreSQL Database (Neon recommended)
-* Pusher Account (for WebSockets)
-* Cloudinary Account (for image hosting)
-
-### Installation
-
-1. Clone the repository:
    ```bash
-   git clone [https://github.com/yourusername/prokitchen-pos.git](https://github.com/yourusername/prokitchen-pos.git)
-   cd prokitchen-pos
+   npm run deploy:migrate
+   ```
 
-    Install dependencies:
-    Bash
+   Run this from a trusted machine or CI job with the production
+   `DATABASE_URL`. Database migrations are deliberately separate from the
+   Vercel build so Preview deployments cannot modify production schema.
+6. Deploy. `postinstall` generates Prisma Client and `npm run build` produces the
+   Vercel Next.js output.
 
-    npm install
+For Preview deployments, use a separate Neon branch/database when they may
+create or modify data. Environment-variable changes only affect new Vercel
+deployments, so redeploy after changing them.
 
-    Set up your .env.local file:
-    Code snippet
+## Verification
 
-    DATABASE_URL="your_neon_db_url"
-    PUSHER_APP_ID="your_pusher_id"
-    NEXT_PUBLIC_PUSHER_KEY="your_pusher_key"
-    PUSHER_SECRET="your_pusher_secret"
-    NEXT_PUBLIC_PUSHER_CLUSTER="your_cluster"
-    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your_cloud_name"
-    NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET="your_preset"
+```bash
+npm test
+npm run lint
+npx tsc --noEmit
+npm run build
+```
 
-    Push the database schema:
-    Bash
+Database integration checks are opt-in and roll back their fixtures:
 
-    npx prisma db push
+```bash
+npm run test:menu:db
+npm run test:deals:db
+npm run test:checkout:db
+```
 
-    Start the development server:
-    Bash
-
-    npm run dev
-
-## 💡 Technical Challenges Solved
-
-* Hydration Mismatch: Resolved React server/client HTML mismatches using suppressHydrationWarning for dynamic date and boolean attributes.
-
-* Prisma Serialization: Fixed [object Object] errors during server-to-client data transfer by sanitizing Prisma Decimal and Date objects into plain JSON.
-
-* Referential Integrity: Implemented cascading deletes and foreign key management to maintain absolute historical accuracy for past transactions.
-
-## 👨‍💻 Developer
-
-* Muhammad Ammar (Ammar Talpur) Full Stack Web Developer | Backend Specialist
+`npm run seed:dashboard` writes persistent catalog and sales data. Do not run it
+automatically during deployment.

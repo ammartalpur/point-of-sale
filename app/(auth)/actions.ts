@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 
 interface SessionUser {
   id: string;
@@ -28,34 +29,49 @@ async function createSession(user: SessionUser) {
 }
 
 export async function registerAction(prevState: Record<string, unknown> | undefined, formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  // Default first user to admin, others to cashier (optional logic, but helpful for setup)
-  const role = (formData.get("role") as string) || "cashier";
+  void prevState;
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
 
   if (!email || !password) return { error: "Email and password are required." };
-
-  const existingUser = await prisma.profile.findUnique({ where: { email } });
-  if (existingUser) return { error: "User already exists." };
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) return { error: "Enter a valid email address." };
+  if (password.length < 8 || password.length > 128) return { error: "Password must contain between 8 and 128 characters." };
 
   const hashedPassword = await bcrypt.hash(password, 10);
-
-  const user = await prisma.profile.create({
-    data: {
-      id: randomUUID(),
-      email,
-      password: hashedPassword,
-      role,
-    },
-  });
+  let user: SessionUser | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      user = await prisma.$transaction(async (tx) => {
+        if (await tx.profile.count() > 0) {
+          throw new Error("SETUP_COMPLETE");
+        }
+        return tx.profile.create({
+          data: { id: randomUUID(), email, password: hashedPassword, role: "admin" },
+          select: { id: true, email: true, role: true },
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 15_000 });
+      break;
+    } catch (error) {
+      if (error instanceof Error && error.message === "SETUP_COMPLETE") {
+        return { error: "Initial setup is complete. Ask an administrator to create staff access." };
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return { error: "User already exists." };
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034" && attempt < 2) continue;
+      throw error;
+    }
+  }
+  if (!user) return { error: "Account setup could not be completed. Please try again." };
 
   await createSession(user);
-  redirect(user.role === "admin" ? "/admin/dashboard" : "/terminal");
+  redirect("/admin/dashboard");
 }
 
 export async function loginAction(prevState: Record<string, unknown> | undefined, formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  void prevState;
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
 
   if (!email || !password) return { error: "Email and password are required." };
 
