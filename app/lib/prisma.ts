@@ -1,10 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { neonConfig } from "@neondatabase/serverless";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import ws from "ws";
-
-// Neon requires WebSockets to work in standard Node environments
-neonConfig.webSocketConstructor = ws;
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is required.");
@@ -13,9 +8,10 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Instantiate the Neon pool and pass it to Prisma
 const createPrismaClient = () => {
-  const adapter = new PrismaNeon({ connectionString });
+  // Use Neon's pooled PostgreSQL endpoint over TCP/TLS. This avoids fragile
+  // cross-request WebSockets and still supports the app's transactions.
+  const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter });
 };
 

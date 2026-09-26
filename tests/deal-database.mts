@@ -3,16 +3,13 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { PrismaClient, Prisma } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import { neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
+import { PrismaPg } from "@prisma/adapter-pg";
 import nextEnv from "@next/env";
 import { applyDealCommand, parseDealCommand } from "../app/lib/deal-management.ts";
 
 nextEnv.loadEnvConfig(process.cwd(), true);
-neonConfig.webSocketConstructor = ws;
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for this opt-in test.");
-const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }) });
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
 const rollback = new Error("ROLLBACK_SUCCESSFUL_TEST");
 const tag = `Deal test ${randomUUID()}`;
 let reachedEnd = false;

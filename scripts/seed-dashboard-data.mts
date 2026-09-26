@@ -1,18 +1,15 @@
 // Creates a small, repeatable set of real catalog and order records through the
 // same checkout service used by the cashier. Re-running skips existing sales.
 import { Prisma, PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import { neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
+import { PrismaPg } from "@prisma/adapter-pg";
 import nextEnv from "@next/env";
 import { saveCheckout } from "../app/lib/checkout.ts";
 import { validateCheckoutInput, type CheckoutInput } from "../app/lib/order-calculations.ts";
 
 nextEnv.loadEnvConfig(process.cwd(), true);
-neonConfig.webSocketConstructor = ws;
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required.");
 
-const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }) });
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
 
 async function category(name: string, requiresPreparation: boolean) {
   const existing = await prisma.category.findFirst({ where: { name } });

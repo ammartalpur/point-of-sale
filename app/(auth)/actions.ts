@@ -14,6 +14,21 @@ interface SessionUser {
   role: string;
 }
 
+function databaseErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  if ("code" in error && typeof error.code === "string") return error.code;
+  if ("cause" in error) return databaseErrorCode(error.cause);
+  return undefined;
+}
+
+function reportAuthError(operation: string, error: unknown) {
+  console.error(operation, {
+    name: error instanceof Error ? error.name : "DatabaseError",
+    code: databaseErrorCode(error),
+    message: error instanceof Error ? error.message : "The database request failed.",
+  });
+}
+
 // Helper function to set the cookie
 async function createSession(user: SessionUser) {
   const sessionData = { id: user.id, email: user.email, role: user.role };
@@ -47,13 +62,19 @@ export async function registerAction(prevState: Record<string, unknown> | undefi
       select: { id: true, email: true, role: true },
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (databaseErrorCode(error) === "P2002" || error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return { error: "An account with this email already exists. Log in instead." };
     }
-    throw error;
+    reportAuthError("Registration failed", error);
+    return { error: "Registration could not connect to the database. Please try again." };
   }
 
-  await createSession(user);
+  try {
+    await createSession(user);
+  } catch (error) {
+    reportAuthError("Registration session failed", error);
+    return { error: "The account was created, but sign-in could not be completed. Log in with the new account." };
+  }
   redirect(role === "admin" ? "/admin/dashboard" : "/terminal");
 }
 
@@ -68,7 +89,13 @@ export async function loginAction(prevState: Record<string, unknown> | undefined
     return { error: "Choose Admin or Cashier before signing in." };
   }
 
-  const user = await prisma.profile.findUnique({ where: { email } });
+  let user: (SessionUser & { password: string }) | null;
+  try {
+    user = await prisma.profile.findUnique({ where: { email } });
+  } catch (error) {
+    reportAuthError("Login lookup failed", error);
+    return { error: "Login could not connect to the database. Please try again." };
+  }
   if (!user) return { error: "Invalid credentials." };
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -77,7 +104,12 @@ export async function loginAction(prevState: Record<string, unknown> | undefined
     return { error: `This account is registered as ${user.role === "admin" ? "an administrator" : "a cashier"}. Choose the matching login type.` };
   }
 
-  await createSession(user);
+  try {
+    await createSession(user);
+  } catch (error) {
+    reportAuthError("Login session failed", error);
+    return { error: "Login could not be completed. Please try again." };
+  }
   redirect(requestedRole === "admin" ? "/admin/dashboard" : "/terminal");
 }
 
