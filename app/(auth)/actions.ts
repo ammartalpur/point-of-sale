@@ -38,31 +38,18 @@ export async function registerAction(prevState: Record<string, unknown> | undefi
   if (password.length < 8 || password.length > 128) return { error: "Password must contain between 8 and 128 characters." };
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  let user: SessionUser | undefined;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      user = await prisma.$transaction(async (tx) => {
-        if (await tx.profile.count() > 0) {
-          throw new Error("SETUP_COMPLETE");
-        }
-        return tx.profile.create({
-          data: { id: randomUUID(), email, password: hashedPassword, role: "admin" },
-          select: { id: true, email: true, role: true },
-        });
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 15_000 });
-      break;
-    } catch (error) {
-      if (error instanceof Error && error.message === "SETUP_COMPLETE") {
-        return { error: "Initial setup is complete. Ask an administrator to create staff access." };
-      }
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        return { error: "User already exists." };
-      }
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034" && attempt < 2) continue;
-      throw error;
+  let user: SessionUser;
+  try {
+    user = await prisma.profile.create({
+      data: { id: randomUUID(), email, password: hashedPassword, role: "admin" },
+      select: { id: true, email: true, role: true },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { error: "An account with this email already exists. Log in instead." };
     }
+    throw error;
   }
-  if (!user) return { error: "Account setup could not be completed. Please try again." };
 
   await createSession(user);
   redirect("/admin/dashboard");
@@ -72,17 +59,24 @@ export async function loginAction(prevState: Record<string, unknown> | undefined
   void prevState;
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const requestedRole = String(formData.get("role") ?? "").trim().toLowerCase();
 
   if (!email || !password) return { error: "Email and password are required." };
+  if (requestedRole !== "admin" && requestedRole !== "cashier") {
+    return { error: "Choose Admin or Cashier before signing in." };
+  }
 
   const user = await prisma.profile.findUnique({ where: { email } });
   if (!user) return { error: "Invalid credentials." };
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) return { error: "Invalid credentials." };
+  if (user.role !== requestedRole) {
+    return { error: `This account is registered as ${user.role === "admin" ? "an administrator" : "a cashier"}. Choose the matching login type.` };
+  }
 
   await createSession(user);
-  redirect(user.role === "admin" ? "/admin/dashboard" : "/terminal");
+  redirect(requestedRole === "admin" ? "/admin/dashboard" : "/terminal");
 }
 
 export async function logoutAction() {

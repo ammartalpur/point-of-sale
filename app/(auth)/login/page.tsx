@@ -1,7 +1,7 @@
 "use client";
 
 // 1. Update import
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { loginAction } from "../actions";
 import Link from "next/link";
 import OtaqBrand from "@/app/components/OtaqBrand";
@@ -9,6 +9,7 @@ import OtaqBrand from "@/app/components/OtaqBrand";
 export default function LoginPage() {
   // 2. Update hook
   const [state, formAction] = useActionState(loginAction, { error: "" });
+  const [role, setRole] = useState<"admin" | "cashier">("admin");
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#17110d] p-4 text-slate-100">
@@ -20,6 +21,30 @@ export default function LoginPage() {
         <p className="mb-7 mt-2 text-center text-sm text-slate-500">Sign in to Otaq Restaurant POS</p>
 
         <form action={formAction} className="space-y-4">
+          <fieldset>
+            <legend className="mb-2 block text-sm font-medium text-slate-300">Sign in as</legend>
+            <input type="hidden" name="role" value={role} />
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/8 bg-[#17110d] p-1.5">
+              {(["admin", "cashier"] as const).map((option) => {
+                const selected = role === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setRole(option)}
+                    className={`rounded-lg px-3 py-2.5 text-sm font-semibold capitalize transition ${selected ? "bg-orange-500 text-white shadow-lg shadow-orange-950/25" : "text-slate-500 hover:bg-white/5 hover:text-slate-200"}`}
+                  >
+                    {option === "admin" ? "Admin" : "Cashier"}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-slate-600">
+              {role === "admin" ? "Manage sales, menu, deals and reports." : "Open the cashier ordering terminal."}
+            </p>
+          </fieldset>
+
           <div>
             <label className="block text-sm font-medium text-slate-300">
               Email Address
