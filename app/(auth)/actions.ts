@@ -32,16 +32,18 @@ export async function registerAction(prevState: Record<string, unknown> | undefi
   void prevState;
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const role = String(formData.get("role") ?? "").trim().toLowerCase();
 
   if (!email || !password) return { error: "Email and password are required." };
   if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) return { error: "Enter a valid email address." };
   if (password.length < 8 || password.length > 128) return { error: "Password must contain between 8 and 128 characters." };
+  if (role !== "admin" && role !== "cashier") return { error: "Choose Admin or Cashier before registering." };
 
   const hashedPassword = await bcrypt.hash(password, 10);
   let user: SessionUser;
   try {
     user = await prisma.profile.create({
-      data: { id: randomUUID(), email, password: hashedPassword, role: "admin" },
+      data: { id: randomUUID(), email, password: hashedPassword, role },
       select: { id: true, email: true, role: true },
     });
   } catch (error) {
@@ -52,7 +54,7 @@ export async function registerAction(prevState: Record<string, unknown> | undefi
   }
 
   await createSession(user);
-  redirect("/admin/dashboard");
+  redirect(role === "admin" ? "/admin/dashboard" : "/terminal");
 }
 
 export async function loginAction(prevState: Record<string, unknown> | undefined, formData: FormData) {
