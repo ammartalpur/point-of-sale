@@ -56,7 +56,7 @@ export default function MenuManager({ categories, products }: { categories: Menu
               <button className="text-slate-600" aria-label={`${category.isArchived ? "Restore" : "Archive"} category ${category.name}`} onClick={() => confirm(category.isArchived ? "Restore category" : "Archive category",
                 category.isArchived ? `Restore “${category.name}”? Products retain their own archive and availability settings.` : `Archive “${category.name}”? Its products and deals containing them will be unavailable at checkout. History is preserved.`,
                 { type: category.isArchived ? "restoreCategory" : "archiveCategory", id: category.id })}>{category.isArchived ? "Restore" : "Archive"}</button>
-              <button className="text-red-600" aria-label={`Delete category ${category.name}`} onClick={() => confirm("Delete category", `Delete “${category.name}”? Only empty categories can be permanently deleted. Move its products or archive the category otherwise.`, { type: "deleteCategory", id: category.id })}>Delete</button>
+              <button className="text-red-600" aria-label={`Delete category ${category.name}`} onClick={() => confirm("Delete category", `Permanently delete “${category.name}”, all ${category._count.products} products in it, and every deal containing those products? Completed order history will remain available.`, { type: "deleteCategory", id: category.id })}>Delete</button>
             </div>
           </div>)}</div>
           {categories.length === 0 && <p className="py-6 text-sm text-slate-500">Add your first category to start building the menu.</p>}

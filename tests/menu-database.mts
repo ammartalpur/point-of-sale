@@ -29,7 +29,6 @@ try {
     await run({ type: "updateProduct", id: product.id, data: { ...fields, name: `${tag} edited`, basePrice: "125.75", requiresPreparation: false } });
     const edited = await tx.product.findUniqueOrThrow({ where: { id: product.id } });
     assert.equal(edited.stock, 9); assert.equal(edited.basePrice.toString(), "125.75");
-    await assert.rejects(run({ type: "deleteCategory", id: category.id }), /Move or delete/);
     await run({ type: "archiveCategory", id: category.id });
     await run({ type: "archiveProduct", id: product.id });
     await assert.rejects(run({ type: "restoreProduct", id: product.id }), /category/);
@@ -47,8 +46,32 @@ try {
     const unused = await tx.product.findFirstOrThrow({ where: { name: `${tag} unused` } });
     await run({ type: "deleteProduct", id: unused.id });
     assert.equal(await tx.product.findUnique({ where: { id: unused.id } }), null);
-    const empty = await tx.category.create({ data: { name: `${tag} empty` } });
-    await run({ type: "deleteCategory", id: empty.id });
+    const cascadeCategory = await tx.category.create({ data: { name: `${tag} cascade` } });
+    const cascadeProduct = await tx.product.create({ data: {
+      categoryId: cascadeCategory.id, name: `${tag} cascade product`, basePrice: "50.00", stock: 3,
+      modifiers: { create: { name: "Cascade modifier", priceAdjustment: "5.00" } },
+    }, include: { modifiers: true } });
+    const cascadeDeal = await tx.deal.create({ data: {
+      name: `${tag} cascade deal`, price: "45.00",
+      items: { create: { productId: cascadeProduct.id, quantity: 1 } },
+    } });
+    const historicalOrder = await tx.order.create({ data: {
+      cashierId: user.id, subtotal: "55.00", totalAmount: "55.00", paymentMethod: "cash",
+      items: { create: {
+        productId: cascadeProduct.id, modifierId: cascadeProduct.modifiers[0].id, quantity: 1,
+        priceAtTime: "55.00", productName: "Historical cascade item", categoryName: cascadeCategory.name,
+        requiresPreparation: true, lineSubtotal: "55.00", lineTotal: "55.00",
+      } },
+    } });
+    const cascadeMessage = await run({ type: "deleteCategory", id: cascadeCategory.id });
+    assert.match(cascadeMessage, /1 product and 1 deal/);
+    assert.equal(await tx.category.findUnique({ where: { id: cascadeCategory.id } }), null);
+    assert.equal(await tx.product.findUnique({ where: { id: cascadeProduct.id } }), null);
+    assert.equal(await tx.deal.findUnique({ where: { id: cascadeDeal.id } }), null);
+    const historicalItem = await tx.orderItem.findFirstOrThrow({ where: { orderId: historicalOrder.id } });
+    assert.equal(historicalItem.productId, null);
+    assert.equal(historicalItem.modifierId, null);
+    assert.equal(historicalItem.productName, "Historical cascade item");
     await tx.profile.update({ where: { id: user.id }, data: { role: "cashier" } });
     await assert.rejects(run({ type: "setAvailability", id: product.id, isAvailable: false }), /administrator/);
     reachedEnd = true;

@@ -29,7 +29,7 @@ test("invalid numbers, names, booleans and image hosts never reach persistence",
 });
 
 function fixture() {
-  const state = { role: "admin", categoryArchived: false, categoryProducts: 1, orders: 0, deals: 0, stockCount: 1, duplicate: false };
+  const state = { role: "admin", categoryArchived: false, categoryProducts: 1, relatedDeals: [{ id: "deal" }], orders: 0, deals: 0, stockCount: 1, duplicate: false };
   const writes: { operation: string; args: unknown }[] = [];
   const write = (operation: string) => async (args: unknown) => { writes.push({ operation, args }); return {}; };
   const tx = {
@@ -43,6 +43,10 @@ function fixture() {
       create: write("createProduct"), update: write("updateProduct"), delete: write("deleteProduct"),
       updateMany: async (args: unknown) => { writes.push({ operation: "updateStock", args }); return { count: state.stockCount }; },
       findUnique: async () => ({ category: { isArchived: state.categoryArchived }, _count: { orderItems: state.orders, dealItems: state.deals }, modifiers: [] }),
+    },
+    deal: {
+      findMany: async () => state.relatedDeals,
+      deleteMany: write("deleteDeals"),
     },
   } as unknown as Prisma.TransactionClient;
   return { state, writes, tx };
@@ -60,13 +64,11 @@ test("non-admin callers cannot change categories, products, availability or stoc
   assert.equal(f.writes.length, 0);
 });
 
-test("category deletion refuses all child products, but empty categories can be removed", async () => {
+test("category deletion removes related deals before cascading through its products", async () => {
   const f = fixture();
-  await assert.rejects(applyMenuCommand(f.tx, "admin", { type: "deleteCategory", id: "c" }), /Move or delete/);
-  assert.equal(f.writes.length, 0);
-  f.state.categoryProducts = 0;
-  await applyMenuCommand(f.tx, "admin", { type: "deleteCategory", id: "c" });
-  assert.equal(f.writes[0].operation, "deleteCategory");
+  const message = await applyMenuCommand(f.tx, "admin", { type: "deleteCategory", id: "c" });
+  assert.deepEqual(f.writes.map((write) => write.operation), ["deleteDeals", "deleteCategory"]);
+  assert.match(message, /1 product and 1 deal/);
 });
 
 test("products referenced by sales or deals are archived; unused products are deleted", async () => {

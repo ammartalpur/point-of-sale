@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "client"
 }
 
@@ -147,10 +147,10 @@ model OrderItem {
   id                  String           @id @default(uuid())
   orderId             String
   order               Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId           String
-  product             Product          @relation(fields: [productId], references: [id])
+  productId           String?
+  product             Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
   modifierId          String?
-  modifier            ProductModifier? @relation(fields: [modifierId], references: [id])
+  modifier            ProductModifier? @relation(fields: [modifierId], references: [id], onDelete: SetNull)
   quantity            Int              @default(1)
   priceAtTime         Decimal          @db.Decimal(10, 2)
   productName         String

@@ -77,8 +77,8 @@ export async function requireMenuAdmin(tx: Pick<Prisma.TransactionClient, "profi
   if (profile?.role !== "admin") throw new MenuError("Only an administrator can manage the menu.");
 }
 
-// Serializable transaction prevents category deletion racing a product move,
-// and conditional stock edits prevent overwriting concurrent checkouts.
+// Serializable transactions keep category cascades atomic, and conditional stock
+// edits prevent overwriting concurrent checkouts.
 export async function applyMenuCommand(tx: Prisma.TransactionClient, userId: string, command: MenuCommand) {
   await requireMenuAdmin(tx, userId);
   if (command.type === "saveCategory") {
@@ -96,9 +96,17 @@ export async function applyMenuCommand(tx: Prisma.TransactionClient, userId: str
     const category = await tx.category.findUnique({ where: { id: command.id }, include: { _count: { select: { products: true } } } });
     if (!category) throw new MenuError("Category no longer exists.");
     if (command.type === "deleteCategory") {
-      if (category._count.products > 0) throw new MenuError("Move or delete this category's products first, or archive the category instead.");
+      const relatedDeals = await tx.deal.findMany({
+        where: { items: { some: { product: { categoryId: command.id } } } },
+        select: { id: true },
+      });
+      if (relatedDeals.length > 0) {
+        await tx.deal.deleteMany({ where: { id: { in: relatedDeals.map((deal) => deal.id) } } });
+      }
       await tx.category.delete({ where: { id: command.id } });
-      return "Empty category deleted.";
+      const productLabel = `${category._count.products} product${category._count.products === 1 ? "" : "s"}`;
+      const dealLabel = `${relatedDeals.length} deal${relatedDeals.length === 1 ? "" : "s"}`;
+      return `Category deleted with ${productLabel} and ${dealLabel}. Completed order history was preserved.`;
     }
     const isArchived = command.type === "archiveCategory";
     await tx.category.update({ where: { id: command.id }, data: { isArchived } });
